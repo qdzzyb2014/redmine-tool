@@ -13,12 +13,9 @@ import (
 )
 
 const token = "40e43a15340b2338c94642c82ea16e92a17ff445"
-// const token = "6c6c0f874e704880a81e5bb09811296615517f64"
 const contentType = "application/json"
 const baseURL = "https://decentfox.net:10443"
 const test = "https://decentfox.net:10443/projects/tireo2o"
-
-const testURL = "https://redmine.mojigo.net"
 
 type Info struct {
 	Id   int    `json:"id"`
