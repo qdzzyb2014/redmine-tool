@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,10 +13,12 @@ import (
 )
 
 const token = "40e43a15340b2338c94642c82ea16e92a17ff445"
+// const token = "6c6c0f874e704880a81e5bb09811296615517f64"
 const contentType = "application/json"
 const baseURL = "https://decentfox.net:10443"
 const test = "https://decentfox.net:10443/projects/tireo2o"
-const testURL = "http://www.redmine.org"
+
+const testURL = "https://redmine.mojigo.net"
 
 type Info struct {
 	Id   int    `json:"id"`
@@ -37,7 +40,8 @@ type Issue struct {
 }
 
 func (issue Issue) String() string {
-	return fmt.Sprintf("#%v, %v\ndescription: %s", issue.Id, issue.Subject, issue.Description)
+	assigned_to := fmt.Sprintf("Assigned To:%v %v", issue.Assigned_to.Name, issue.Assigned_to.Id)
+	return fmt.Sprintf("#%v, %v\t%v\ndescription: \n%s", issue.Id, issue.Subject, assigned_to, issue.Description)
 }
 
 func (issue Issue) GitMessage() string {
@@ -92,6 +96,8 @@ func main() {
 		getIssues()
 	case "project":
 		Progects()
+	case "working":
+		updateIssue("working")
 	default:
 		fmt.Println("wrong command")
 	}
@@ -101,34 +107,32 @@ func getClinet() *http.Client {
 	return &http.Client{}
 }
 
-func NewRequest(method, url string) *http.Request {
+func Body(method, url string) []byte {
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
 	req.Header.Add("ContentType", contentType)
 	req.Header.Add("X-Redmine-API-Key", token)
-	return req
-}
-
-func getIssues() {
-	projectId := flag.Int("project", 0, "project id. run 'redmine-tool projects' learn more info")
-	flag.CommandLine.Parse(os.Args[2:])
-	url := baseURL + "/" + "issues.json" 
-	if *projectId != 0 {
-		url += "?" + "project_id=" + strconv.Itoa(*projectId)
-	}
-	req := NewRequest("GET", url)
 	resp, err := getClinet().Do(req)
 	if err != nil {
 		fmt.Println(err)
 	}
 	body, _ := ioutil.ReadAll(resp.Body)
-	issues := IssuesResp{}
-	json.Unmarshal(body, &issues)
-	fmt.Println(issues)
+	return body
 }
 
+func getIssues() {
+	projectId := flag.Int("project", 0, "project id. run 'redmine-tool projects' learn more info")
+	flag.CommandLine.Parse(os.Args[2:])
+	url := baseURL + "/" + "issues.json"
+	if *projectId != 0 {
+		url += "?" + "project_id=" + strconv.Itoa(*projectId)
+	}
+	issues := IssuesResp{}
+	json.Unmarshal(Body("GET", url), &issues)
+	fmt.Println(issues)
+}
 
 func getIssusInfo() {
 	id := flag.Int("id", 0, "")
@@ -138,28 +142,52 @@ func getIssusInfo() {
 		return
 	}
 	url := baseURL + "/" + "issues" + "/" + strconv.Itoa(*id) + ".json"
-	req := NewRequest("GET", url)
-	resp, err := getClinet().Do(req)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
 	issue := IssueResp{}
-	json.Unmarshal(body, &issue)
+	json.Unmarshal(Body("GET", url), &issue)
 	clipboard.WriteAll(issue.Is.GitMessage())
 	fmt.Println(issue.Is)
 }
 
 func Progects() {
 	url := baseURL + "/" + "projects.json"
-	req := NewRequest("GET", url)
-	resp, err := getClinet().Do(req)
+	projects := ProjectResp{}
+	json.Unmarshal(Body("GET", url), &projects)
+	fmt.Println(projects)
+}
+
+func updateIssue(status string) {
+	id := flag.Int("id", 0, "")
+	flag.CommandLine.Parse(os.Args[2:])
+	if *id == 0 {
+		fmt.Printf("Wrong id: %d\n", id)
+		return
+	}
+	url := baseURL + "/" + "issues" + "/" + strconv.Itoa(*id) + ".json"
+	fmt.Println(url)
+	issue := UpdateIssue{2, 14}
+	fmt.Println(issue)
+	fawData := UpdateIssueBody{issue}
+	data, err := json.Marshal(fawData)
+	fmt.Println(string(data))
 	if err != nil {
 		fmt.Println(err)
 	}
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(data))
+	if err != nil {
+		fmt.Println(err)
+	}
+	req.Header.Add("Content-Type", contentType)
+	req.Header.Add("X-Redmine-API-Key", token)
+	resp, err := getClinet().Do(req)
 	body, _ := ioutil.ReadAll(resp.Body)
-	projects := ProjectResp{}
-	json.Unmarshal(body, &projects)
-	fmt.Println(projects)
+	fmt.Println(string(body))
+}
+
+type UpdateIssue struct {
+	StatusId     int `json:"status_id"`
+	AssignedToId int `json:"assigned_to_id"`
+}
+
+type UpdateIssueBody struct {
+	Issue UpdateIssue `json:"issue"`
 }
