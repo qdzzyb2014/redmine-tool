@@ -124,7 +124,6 @@ func getIssues(assignedToId string) {
 	flag.CommandLine.Parse(os.Args[2:])
 	u, _ := url.Parse(baseURL)
 	u.Path += "/issues.json"
-	fmt.Println(u)
 	query := u.Query()
 	if *projectId != 0 {
 		query.Set("project_id", strconv.Itoa(*projectId))
@@ -135,7 +134,6 @@ func getIssues(assignedToId string) {
 	}
 	u.RawQuery = query.Encode()
 	issues := IssuesResp{}
-	fmt.Println(u.String())
 	json.Unmarshal(Body("GET", u.String()), &issues)
 	fmt.Println(issues)
 }
@@ -169,9 +167,7 @@ func updateIssue(status string) {
 		return
 	}
 	url := baseURL + "/" + "issues" + "/" + strconv.Itoa(*id) + ".json"
-	fmt.Println(url)
 	issue := UpdateIssue{2, 14}
-	fmt.Println(issue)
 	fawData := UpdateIssueBody{issue}
 	data, err := json.Marshal(fawData)
 	fmt.Println(string(data))
