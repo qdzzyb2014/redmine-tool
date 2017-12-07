@@ -10,12 +10,10 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"net/url"
 )
 
-const token = "40e43a15340b2338c94642c82ea16e92a17ff445"
 const contentType = "application/json"
-const baseURL = "https://decentfox.net:10443"
-const test = "https://decentfox.net:10443/projects/tireo2o"
 
 type Info struct {
 	Id   int    `json:"id"`
@@ -38,7 +36,7 @@ type Issue struct {
 
 func (issue Issue) String() string {
 	assigned_to := fmt.Sprintf("Assigned To:%v %v", issue.Assigned_to.Name, issue.Assigned_to.Id)
-	return fmt.Sprintf("#%v, %v\t%v\ndescription: \n%s", issue.Id, issue.Subject, assigned_to, issue.Description)
+	return fmt.Sprintf("#%v, %v\t%v\ndescription: \n%s\n", issue.Id, issue.Subject, assigned_to, issue.Description)
 }
 
 func (issue Issue) GitMessage() string {
@@ -90,11 +88,13 @@ func main() {
 	case "issue":
 		getIssusInfo()
 	case "issues":
-		getIssues()
+		getIssues("")
 	case "project":
 		Progects()
 	case "working":
-		updateIssue("working")
+		updateIssue(command)
+	case "me":
+		getIssues(command)
 	default:
 		fmt.Println("wrong command")
 	}
@@ -119,15 +119,24 @@ func Body(method, url string) []byte {
 	return body
 }
 
-func getIssues() {
+func getIssues(assignedToId string) {
 	projectId := flag.Int("project", 0, "project id. run 'redmine-tool projects' learn more info")
 	flag.CommandLine.Parse(os.Args[2:])
-	url := baseURL + "/" + "issues.json"
+	u, _ := url.Parse(baseURL)
+	u.Path += "/issues.json"
+	fmt.Println(u)
+	query := u.Query()
 	if *projectId != 0 {
-		url += "?" + "project_id=" + strconv.Itoa(*projectId)
+		query.Set("project_id", strconv.Itoa(*projectId))
 	}
+	if assignedToId != "" {
+		query.Set("assigned_to_id", assignedToId)
+		query.Set("status_id", "1")
+	}
+	u.RawQuery = query.Encode()
 	issues := IssuesResp{}
-	json.Unmarshal(Body("GET", url), &issues)
+	fmt.Println(u.String())
+	json.Unmarshal(Body("GET", u.String()), &issues)
 	fmt.Println(issues)
 }
 
